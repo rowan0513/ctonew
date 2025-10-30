@@ -61,8 +61,6 @@ export async function insertAnalyticsEvent(
 }
 
 export async function fetchAnalyticsEvents(
-</commentary to=functions.EditFile code>
-export async function fetchAnalyticsEvents(
   filters: AnalyticsFilters,
 ): Promise<AnalyticsEventRecord[]> {
   const rows = await sql<AnalyticsEventRecord[]>`

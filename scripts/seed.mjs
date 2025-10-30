@@ -43,6 +43,69 @@ async function ensureTables(sql) {
     UNIQUE (workspace_id, name)
   )`;
 
+  await sql`ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ready'`;
+  await sql`ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE data_sources ADD COLUMN IF NOT EXISTS last_error TEXT`;
+
+  await sql`CREATE TABLE IF NOT EXISTS documents (
+    id UUID PRIMARY KEY,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    language TEXT NOT NULL,
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    deleted_at TIMESTAMPTZ
+  )`;
+
+  await sql`CREATE INDEX IF NOT EXISTS documents_workspace_type_idx
+    ON documents (workspace_id, type)
+    WHERE deleted_at IS NULL`;
+
+  await sql`CREATE TABLE IF NOT EXISTS document_revisions (
+    id UUID PRIMARY KEY,
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    language TEXT NOT NULL,
+    tags JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    created_by TEXT,
+    UNIQUE (document_id, version)
+  )`;
+
+  await sql`CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id UUID,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  )`;
+
+  await sql`CREATE INDEX IF NOT EXISTS audit_logs_workspace_idx
+    ON audit_logs (workspace_id, created_at DESC)`;
+
+  await sql`CREATE TABLE IF NOT EXISTS embedding_jobs (
+    id UUID PRIMARY KEY,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+    job_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued',
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    queued_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  )`;
+
+  await sql`CREATE INDEX IF NOT EXISTS embedding_jobs_workspace_idx
+    ON embedding_jobs (workspace_id, queued_at DESC)`;
+
   await sql`CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -162,10 +225,14 @@ async function upsertWorkspace(sql) {
 }
 
 async function seedDataSources(sql, workspaceId) {
+  const now = Date.now();
+
   const dataSources = [
     {
       name: "Zendesk",
       type: "ticketing",
+      status: "ready",
+      lastSyncedAt: new Date(now - 15 * 60 * 1000).toISOString(),
       config: {
         baseUrl: "https://ezchat.zendesk.com",
         authType: "oauth",
@@ -175,6 +242,8 @@ async function seedDataSources(sql, workspaceId) {
     {
       name: "Intercom",
       type: "messaging",
+      status: "ready",
+      lastSyncedAt: new Date(now - 8 * 60 * 1000).toISOString(),
       config: {
         workspaceId: "ezchat-ops",
         channels: ["email", "chat", "in-app"],
@@ -184,19 +253,300 @@ async function seedDataSources(sql, workspaceId) {
     {
       name: "Salesforce",
       type: "crm",
+      status: "ready",
+      lastSyncedAt: new Date(now - 30 * 60 * 1000).toISOString(),
       config: {
         instanceUrl: "https://ezchat.my.salesforce.com",
         integrationUser: "ops-integration@ezchat.io",
         syncCadenceMinutes: 10,
       },
     },
+    {
+      name: "Manual Q&A",
+      type: "manual_qa",
+      status: "ready",
+      lastSyncedAt: new Date(now - 5 * 60 * 1000).toISOString(),
+      config: {
+        managed: true,
+        documentCount: 2,
+        languages: ["en", "nl"],
+      },
+    },
   ];
 
   for (const source of dataSources) {
-    await sql`INSERT INTO data_sources (id, workspace_id, name, type, config)
-      VALUES (${randomUUID()}, ${workspaceId}, ${source.name}, ${source.type}, ${JSON.stringify(source.config)}::jsonb)
+    await sql`INSERT INTO data_sources (id, workspace_id, name, type, config, status, last_synced_at, last_error)
+      VALUES (
+        ${randomUUID()},
+        ${workspaceId},
+        ${source.name},
+        ${source.type},
+        ${JSON.stringify(source.config)}::jsonb,
+        ${source.status},
+        ${source.lastSyncedAt},
+        NULL
+      )
       ON CONFLICT (workspace_id, name)
-      DO UPDATE SET type = EXCLUDED.type, config = EXCLUDED.config`;
+      DO UPDATE SET
+        type = EXCLUDED.type,
+        config = EXCLUDED.config,
+        status = EXCLUDED.status,
+        last_synced_at = EXCLUDED.last_synced_at,
+        last_error = EXCLUDED.last_error`;
+  }
+}
+
+async function seedManualQaDocuments(sql, workspaceId) {
+  await sql`DELETE FROM documents WHERE workspace_id = ${workspaceId} AND type = ${"manual_qa"}`;
+
+  const now = Date.now();
+  const baseTime = new Date(now - 20 * 60 * 1000);
+
+  const documents = [
+    {
+      question: "How do I process a refund for a customer?",
+      answer:
+        "Navigate to Billing → Transactions, locate the payment, and select 'Issue refund'. The customer will receive a confirmation email automatically.",
+      language: "en",
+      tags: ["billing", "refunds"],
+      status: "active",
+      version: 2,
+      revisions: [
+        {
+          version: 1,
+          question: "How can I refund a customer payment?",
+          answer:
+            "Go to Billing → Transactions, open the payment record, and click 'Refund'.",
+          language: "en",
+          tags: ["billing"],
+          createdAt: new Date(baseTime).toISOString(),
+          createdBy: "system",
+        },
+        {
+          version: 2,
+          question: "How do I process a refund for a customer?",
+          answer:
+            "Navigate to Billing → Transactions, locate the payment, and select 'Issue refund'. The customer will receive a confirmation email automatically.",
+          language: "en",
+          tags: ["billing", "refunds"],
+          createdAt: new Date(baseTime.getTime() + 8 * 60 * 1000).toISOString(),
+          createdBy: "ops-automation",
+        },
+      ],
+    },
+    {
+      question: "Welke kanalen ondersteunt de preview-assistent?",
+      answer:
+        "De preview-assistent ondersteunt momenteel e-mail, chat en Slack. Gebruik het QA-dashboard om scenario's per kanaal te testen.",
+      language: "nl",
+      tags: ["preview", "channels"],
+      status: "active",
+      version: 1,
+      revisions: [
+        {
+          version: 1,
+          question: "Welke kanalen ondersteunt de preview-assistent?",
+          answer:
+            "De preview-assistent ondersteunt momenteel e-mail, chat en Slack. Gebruik het QA-dashboard om scenario's per kanaal te testen.",
+          language: "nl",
+          tags: ["preview", "channels"],
+          createdAt: new Date(baseTime.getTime() + 12 * 60 * 1000).toISOString(),
+          createdBy: "qa-team",
+        },
+      ],
+    },
+  ];
+
+  const inserted = [];
+
+  for (const document of documents) {
+    const documentId = randomUUID();
+    const firstRevision = document.revisions[0];
+    const latestRevision = document.revisions[document.revisions.length - 1];
+
+    await sql`
+      INSERT INTO documents (
+        id,
+        workspace_id,
+        type,
+        question,
+        answer,
+        language,
+        tags,
+        version,
+        status,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        ${documentId},
+        ${workspaceId},
+        ${"manual_qa"},
+        ${latestRevision.question},
+        ${latestRevision.answer},
+        ${latestRevision.language},
+        ${JSON.stringify(latestRevision.tags)}::jsonb,
+        ${document.version},
+        ${document.status},
+        ${firstRevision.createdAt},
+        ${latestRevision.createdAt}
+      )
+    `;
+
+    for (const revision of document.revisions) {
+      await sql`
+        INSERT INTO document_revisions (
+          id,
+          document_id,
+          version,
+          question,
+          answer,
+          language,
+          tags,
+          created_at,
+          created_by
+        )
+        VALUES (
+          ${randomUUID()},
+          ${documentId},
+          ${revision.version},
+          ${revision.question},
+          ${revision.answer},
+          ${revision.language},
+          ${JSON.stringify(revision.tags)}::jsonb,
+          ${revision.createdAt},
+          ${revision.createdBy ?? "system"}
+        )
+      `;
+    }
+
+    inserted.push({
+      id: documentId,
+      question: latestRevision.question,
+      language: latestRevision.language,
+      tags: latestRevision.tags,
+      version: document.version,
+      createdAt: firstRevision.createdAt,
+      updatedAt: latestRevision.createdAt,
+      revisions: document.revisions,
+    });
+  }
+
+  return inserted;
+}
+
+async function syncManualQaDataSource(sql, workspaceId, manualDocuments) {
+  const languages = Array.from(new Set(manualDocuments.map((doc) => doc.language))).sort();
+  const latestUpdate = manualDocuments.reduce((latest, doc) => {
+    if (!latest) {
+      return doc.updatedAt ?? null;
+    }
+    const current = doc.updatedAt ?? null;
+    if (!current) {
+      return latest;
+    }
+    return new Date(current) > new Date(latest) ? current : latest;
+  }, null);
+
+  const config = {
+    managed: true,
+    documentCount: manualDocuments.length,
+    languages,
+  };
+
+  await sql`
+    UPDATE data_sources
+    SET config = ${JSON.stringify(config)}::jsonb,
+        last_synced_at = ${latestUpdate},
+        status = 'ready',
+        last_error = NULL
+    WHERE workspace_id = ${workspaceId} AND type = ${"manual_qa"}
+  `;
+}
+
+async function seedAuditLogs(sql, workspaceId, manualDocuments) {
+  await sql`DELETE FROM audit_logs WHERE workspace_id = ${workspaceId}`;
+
+  if (manualDocuments.length === 0) {
+    return;
+  }
+
+  const [firstDoc, secondDoc] = manualDocuments;
+  const logs = [];
+
+  if (firstDoc) {
+    const firstCreated = firstDoc.revisions?.find((revision) => revision.version === 1)?.createdAt ?? firstDoc.createdAt;
+    logs.push({
+      action: "manual_qa.created",
+      actor: "admin@ezchat.io",
+      entityType: "manual_qa",
+      entityId: firstDoc.id,
+      metadata: {
+        documentId: firstDoc.id,
+        question: firstDoc.revisions?.[0]?.question ?? firstDoc.question,
+        version: 1,
+        language: firstDoc.revisions?.[0]?.language ?? firstDoc.language,
+        tags: firstDoc.revisions?.[0]?.tags ?? firstDoc.tags,
+      },
+      createdAt: firstCreated,
+    });
+
+    logs.push({
+      action: "manual_qa.updated",
+      actor: "admin@ezchat.io",
+      entityType: "manual_qa",
+      entityId: firstDoc.id,
+      metadata: {
+        documentId: firstDoc.id,
+        question: firstDoc.question,
+        version: firstDoc.version,
+        language: firstDoc.language,
+        tags: firstDoc.tags,
+      },
+      createdAt: new Date(new Date(firstDoc.updatedAt).getTime() + 90 * 1000).toISOString(),
+    });
+  }
+
+  if (secondDoc) {
+    logs.push({
+      action: "manual_qa.created",
+      actor: "qa-lead@ezchat.io",
+      entityType: "manual_qa",
+      entityId: secondDoc.id,
+      metadata: {
+        documentId: secondDoc.id,
+        question: secondDoc.question,
+        version: secondDoc.version,
+        language: secondDoc.language,
+        tags: secondDoc.tags,
+      },
+      createdAt: secondDoc.createdAt,
+    });
+  }
+
+  for (const log of logs) {
+    await sql`
+      INSERT INTO audit_logs (
+        id,
+        workspace_id,
+        action,
+        actor,
+        entity_type,
+        entity_id,
+        metadata,
+        created_at
+      )
+      VALUES (
+        ${randomUUID()},
+        ${workspaceId},
+        ${log.action},
+        ${log.actor},
+        ${log.entityType},
+        ${log.entityId},
+        ${JSON.stringify(log.metadata)}::jsonb,
+        ${log.createdAt}
+      )
+    `;
   }
 }
 
@@ -411,6 +761,10 @@ async function main() {
 
     const workspaceId = await upsertWorkspace(sql);
     await seedDataSources(sql, workspaceId);
+    const manualDocuments = await seedManualQaDocuments(sql, workspaceId);
+    await syncManualQaDataSource(sql, workspaceId, manualDocuments);
+    await seedAuditLogs(sql, workspaceId, manualDocuments);
+    await sql`DELETE FROM embedding_jobs WHERE workspace_id = ${workspaceId}`;
     const conversations = await seedConversations(sql, workspaceId);
     await seedAnalyticsEvents(sql, workspaceId, conversations);
 

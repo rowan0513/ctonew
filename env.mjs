@@ -33,6 +33,9 @@ export const serverSchema = z.object({
   OUTBOUND_WEBHOOK_SECRET: z
     .string({ required_error: "OUTBOUND_WEBHOOK_SECRET is required" })
     .min(1, "OUTBOUND_WEBHOOK_SECRET cannot be empty"),
+  ADMIN_API_TOKEN: z
+    .string({ required_error: "ADMIN_API_TOKEN is required" })
+    .min(1, "ADMIN_API_TOKEN cannot be empty"),
   RUNTIME_API_URL: z
     .string({ required_error: "RUNTIME_API_URL is required" })
     .url("RUNTIME_API_URL must be a valid URL"),
@@ -82,6 +85,8 @@ const serverEnvResult = serverSchema.safeParse({
   OUTBOUND_WEBHOOK_SECRET:
     process.env.OUTBOUND_WEBHOOK_SECRET ??
     (allowFallbackValues ? "test-outbound-webhook" : undefined),
+  ADMIN_API_TOKEN:
+    process.env.ADMIN_API_TOKEN ?? (allowFallbackValues ? "test-admin-token" : undefined),
   RUNTIME_API_URL:
     process.env.RUNTIME_API_URL ??
     (allowFallbackValues ? "https://runtime.ezchat.local" : undefined),
