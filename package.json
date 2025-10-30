@@ -1,0 +1,17 @@
+{
+  "name": "ctonew",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspace=widget-demo",
+    "test": "npm run test --workspace=@ctonew/widget"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
