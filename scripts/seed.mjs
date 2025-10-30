@@ -60,6 +60,23 @@ async function ensureTables(sql) {
     ON analytics_events (workspace_id, environment)`;
   await sql`CREATE INDEX IF NOT EXISTS analytics_events_conversation_idx
     ON analytics_events (conversation_id)`;
+
+  await sql`CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY,
+    admin_email TEXT NOT NULL,
+    action TEXT NOT NULL,
+    ip_address TEXT,
+    workspace_id UUID REFERENCES workspaces(id) ON DELETE SET NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    details JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  )`;
+
+  await sql`CREATE INDEX IF NOT EXISTS audit_logs_admin_created_idx
+    ON audit_logs (admin_email, created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS audit_logs_workspace_idx
+    ON audit_logs (workspace_id)`;
 }
 
 async function upsertWorkspace(sql) {
