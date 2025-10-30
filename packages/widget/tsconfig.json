@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {},
+    "types": ["vite/client", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "tests", "vite.config.ts", "vite.embed.config.ts", "vitest.config.ts", "setupTests.ts"],
+  "exclude": ["dist"]
+}
