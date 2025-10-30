@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const apiRouter = require('./routes/api');
 const adminRouter = require('./routes/admin');
 const fileUploadRouter = require('./routes/fileUpload');
+const piiMaskingMiddleware = require('./middleware/piiMasking');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandlers');
 
 const app = express();
@@ -47,6 +48,8 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: requestSizeLimit }));
 app.use(express.urlencoded({ extended: true, limit: requestSizeLimit }));
 app.use(express.text({ limit: requestSizeLimit }));
+
+app.use(piiMaskingMiddleware);
 
 app.use((req, res, next) => {
   const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';

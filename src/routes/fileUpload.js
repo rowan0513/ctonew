@@ -29,6 +29,13 @@ router.post(
         moderationProvider: process.env.MODERATION_PROVIDER
       });
 
+      req.analytics.track('file.scanned', {
+        name: scanResult.fileName,
+        status: scanResult.status,
+        issues: scanResult.issues,
+        hash: scanResult.hash
+      });
+
       res.status(200).json({
         file: {
           name: scanResult.fileName,

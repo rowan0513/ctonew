@@ -13,7 +13,8 @@ This project implements the following baseline security safeguards. Each item al
 | SSRF protection | ✅ | Remote crawling uses host allow-lists, protocol checks, response size limits, and timeouts (`src/utils/urlValidation.js`). |
 | Request size limiting | ✅ | JSON, URL-encoded, and text parsers constrained via `REQUEST_SIZE_LIMIT` (default 1 MB). |
 | Dependency auditing | ✅ | `npm run audit:ci` and CI workflow fail on high severity issues. |
-| Automated tests | ✅ | Jest tests cover validators, sanitation, security headers, and file scanning (`tests/app.test.js`). |
+| Privacy controls | ✅ | Configurable PII masking, forget-data workflow, and audit logging (see README and `/admin/privacy`). |
+| Automated tests | ✅ | Jest tests cover validators, sanitation, security headers, file scanning, and privacy workflows (`tests/app.test.js`, `tests/privacy.test.js`). |
 | Secret management | ✅ | Secrets are injected via environment variables; `.env` is ignored. Rotation steps documented below. |
 
 ## Secrets and Rotation Procedures
