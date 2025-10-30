@@ -11,6 +11,9 @@ const requiredTestEnv = {
   AWS_S3_REGION: "us-east-test",
   INBOUND_WEBHOOK_SECRET: "test-inbound-webhook",
   OUTBOUND_WEBHOOK_SECRET: "test-outbound-webhook",
+  ADMIN_EMAIL: "admin@ezchat.io",
+  ADMIN_PASSWORD_HASH: "$2b$12$bXzMFF/KQgdsLj1pl9PzY.r1Bv.kfe2zKKKw3n0EoHoRTvUG.iB6a",
+  SESSION_SECRET: "test-session-secret-change-me-please-123456789",
   NEXT_PUBLIC_APP_URL: "http://localhost:3000",
 } as const;
 
