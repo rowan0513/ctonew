@@ -33,6 +33,12 @@ export const serverSchema = z.object({
   OUTBOUND_WEBHOOK_SECRET: z
     .string({ required_error: "OUTBOUND_WEBHOOK_SECRET is required" })
     .min(1, "OUTBOUND_WEBHOOK_SECRET cannot be empty"),
+  RUNTIME_API_URL: z
+    .string({ required_error: "RUNTIME_API_URL is required" })
+    .url("RUNTIME_API_URL must be a valid URL"),
+  RUNTIME_PREVIEW_TOKEN: z
+    .string({ required_error: "RUNTIME_PREVIEW_TOKEN is required" })
+    .min(1, "RUNTIME_PREVIEW_TOKEN cannot be empty"),
 });
 
 export const clientSchema = z.object({
@@ -76,6 +82,11 @@ const serverEnvResult = serverSchema.safeParse({
   OUTBOUND_WEBHOOK_SECRET:
     process.env.OUTBOUND_WEBHOOK_SECRET ??
     (allowFallbackValues ? "test-outbound-webhook" : undefined),
+  RUNTIME_API_URL:
+    process.env.RUNTIME_API_URL ??
+    (allowFallbackValues ? "https://runtime.ezchat.local" : undefined),
+  RUNTIME_PREVIEW_TOKEN:
+    process.env.RUNTIME_PREVIEW_TOKEN ?? (allowFallbackValues ? "test-preview-token" : undefined),
 });
 
 if (!serverEnvResult.success) {

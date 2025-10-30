@@ -5,7 +5,7 @@ export const analyticsEnvironments = ["production", "preview", "test"] as const;
 export const analyticsEventSchema = z.object({
   workspaceId: z.string().uuid({ message: "workspaceId must be a valid UUID" }),
   conversationId: z.string().uuid().optional().nullable(),
-  eventType: z.literal("message"),
+  eventType: z.enum(["message", "preview_feedback"]),
   environment: z.enum(analyticsEnvironments),
   occurredAt: z
     .string()
@@ -14,6 +14,7 @@ export const analyticsEventSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
   isFallback: z.boolean().optional().default(false),
   feedback: z.enum(["up", "down"]).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const analyticsQuerySchema = z.object({

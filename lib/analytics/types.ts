@@ -1,6 +1,6 @@
 export type AnalyticsEnvironment = "production" | "preview" | "test";
 
-export type AnalyticsEventType = "message";
+export type AnalyticsEventType = "message" | "preview_feedback";
 
 export type AnalyticsEventRecord = {
   id: string;
@@ -12,6 +12,7 @@ export type AnalyticsEventRecord = {
   confidence: number | null;
   feedback: "up" | "down" | null;
   isFallback: boolean;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type SummaryMetrics = {

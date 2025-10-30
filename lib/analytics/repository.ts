@@ -12,6 +12,8 @@ export async function insertAnalyticsEvent(
   const id = randomUUID();
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
+  const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
+
   const [row] = await sql<AnalyticsEventRecord[]>`
     INSERT INTO analytics_events (
       id,
@@ -22,7 +24,8 @@ export async function insertAnalyticsEvent(
       occurred_at,
       confidence,
       feedback,
-      is_fallback
+      is_fallback,
+      metadata
     )
     VALUES (
       ${id},
@@ -33,7 +36,8 @@ export async function insertAnalyticsEvent(
       ${occurredAt},
       ${input.confidence ?? null},
       ${input.feedback ?? null},
-      ${input.isFallback ?? false}
+      ${input.isFallback ?? false},
+      ${metadataJson ? metadataJson : sql`'{}'::jsonb`}
     )
     RETURNING
       id,
@@ -44,16 +48,20 @@ export async function insertAnalyticsEvent(
       occurred_at AS "occurredAt",
       confidence,
       feedback,
-      is_fallback AS "isFallback"
+      is_fallback AS "isFallback",
+      metadata
   `;
 
   return {
     ...row,
     occurredAt: new Date(row.occurredAt).toISOString(),
     confidence: row.confidence === null ? null : Number(row.confidence),
+    metadata: row.metadata ?? null,
   };
 }
 
+export async function fetchAnalyticsEvents(
+</commentary to=functions.EditFile code>
 export async function fetchAnalyticsEvents(
   filters: AnalyticsFilters,
 ): Promise<AnalyticsEventRecord[]> {
@@ -67,7 +75,8 @@ export async function fetchAnalyticsEvents(
       occurred_at AS "occurredAt",
       confidence,
       feedback,
-      is_fallback AS "isFallback"
+      is_fallback AS "isFallback",
+      metadata
     FROM analytics_events
     WHERE workspace_id = ${filters.workspaceId}
       AND occurred_at >= ${filters.startDate.toISOString()}
@@ -83,5 +92,6 @@ export async function fetchAnalyticsEvents(
       ...row,
       occurredAt: new Date(row.occurredAt).toISOString(),
       confidence: row.confidence === null ? null : Number(row.confidence),
+      metadata: row.metadata ?? null,
     }));
 }

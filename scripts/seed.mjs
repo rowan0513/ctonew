@@ -15,8 +15,23 @@ async function ensureTables(sql) {
     slug TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     timezone TEXT DEFAULT 'UTC' NOT NULL,
+    is_trained BOOLEAN DEFAULT FALSE NOT NULL,
+    trained_at TIMESTAMPTZ,
+    published_at TIMESTAMPTZ,
+    draft_prompt_en TEXT NOT NULL DEFAULT '',
+    draft_prompt_nl TEXT NOT NULL DEFAULT '',
+    published_prompt_en TEXT,
+    published_prompt_nl TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
   )`;
+
+  await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS is_trained BOOLEAN DEFAULT FALSE NOT NULL`;
+  await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS trained_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS draft_prompt_en TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS draft_prompt_nl TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS published_prompt_en TEXT`;
+  await sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS published_prompt_nl TEXT`;
 
   await sql`CREATE TABLE IF NOT EXISTS data_sources (
     id UUID PRIMARY KEY,
@@ -67,18 +82,81 @@ async function upsertWorkspace(sql) {
   const workspaceName = "EzChat Demo Workspace";
   const workspaceTimezone = "America/New_York";
 
+  const draftPromptEn = [
+    "You are EzChat's AI assistant responding on behalf of the demo workspace.",
+    "Answer in clear, conversational English and cite supporting sources using markdown links.",
+    "If you rely on internal files, label them with the original filename and summarize the relevant excerpt.",
+  ].join(" ");
+
+  const draftPromptNl = [
+    "Je bent de AI-assistent van EzChat die namens de demo-werkruimte reageert.",
+    "Antwoord in helder, natuurlijk Nederlands en verwijs naar bronnen met markdown-links.",
+    "Noem bestandsnamen wanneer je interne documenten gebruikt en licht het relevante fragment toe.",
+  ].join(" ");
+
+  const publishedPromptEn = [
+    "You are EzChat's AI assistant for production users.",
+    "Provide concise answers in English and reference approved knowledge base content.",
+  ].join(" ");
+
+  const publishedPromptNl = [
+    "Je bent de EzChat-assistent voor productiegebruikers.",
+    "Geef beknopte antwoorden in het Nederlands en verwijs naar goedgekeurde kennisbankartikelen.",
+  ].join(" ");
+
+  const trainedAt = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+  const publishedAt = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
   const existing = await sql`SELECT id FROM workspaces WHERE slug = ${workspaceSlug} LIMIT 1`;
 
   if (existing.length > 0) {
     const workspaceId = existing[0].id;
-    await sql`UPDATE workspaces SET name = ${workspaceName}, timezone = ${workspaceTimezone} WHERE id = ${workspaceId}`;
+    await sql`
+      UPDATE workspaces
+      SET name = ${workspaceName},
+          timezone = ${workspaceTimezone},
+          is_trained = ${true},
+          trained_at = ${trainedAt},
+          published_at = ${publishedAt},
+          draft_prompt_en = ${draftPromptEn},
+          draft_prompt_nl = ${draftPromptNl},
+          published_prompt_en = ${publishedPromptEn},
+          published_prompt_nl = ${publishedPromptNl}
+      WHERE id = ${workspaceId}
+    `;
     return workspaceId;
   }
 
   const workspaceId = randomUUID();
 
-  await sql`INSERT INTO workspaces (id, slug, name, timezone)
-    VALUES (${workspaceId}, ${workspaceSlug}, ${workspaceName}, ${workspaceTimezone})`;
+  await sql`
+    INSERT INTO workspaces (
+      id,
+      slug,
+      name,
+      timezone,
+      is_trained,
+      trained_at,
+      published_at,
+      draft_prompt_en,
+      draft_prompt_nl,
+      published_prompt_en,
+      published_prompt_nl
+    )
+    VALUES (
+      ${workspaceId},
+      ${workspaceSlug},
+      ${workspaceName},
+      ${workspaceTimezone},
+      ${true},
+      ${trainedAt},
+      ${publishedAt},
+      ${draftPromptEn},
+      ${draftPromptNl},
+      ${publishedPromptEn},
+      ${publishedPromptNl}
+    )
+  `;
 
   return workspaceId;
 }

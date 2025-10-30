@@ -71,6 +71,8 @@ The script runs inside a transaction and rolls back on failure. Provide valid cr
 | `AWS_S3_REGION` | Region hosting the bucket. | AWS S3 |
 | `INBOUND_WEBHOOK_SECRET` | Secret validating inbound partner webhooks. | EzChat integrations |
 | `OUTBOUND_WEBHOOK_SECRET` | Secret used when EzChat calls downstream systems. | EzChat integrations |
+| `RUNTIME_API_URL` | Base URL for the EzChat runtime pipeline used by admin previews. | EzChat runtime |
+| `RUNTIME_PREVIEW_TOKEN` | Internal bearer token used to authenticate preview chat requests. | EzChat runtime |
 
 Secrets should be stored in your Vercel project environment (Production/Preview/Development sets) and duplicated in GitHub Actions for branch builds when required. The repo ships with `.env.example` placeholders; update them and run `pnpm check:env` to ensure parity with the schema.
 
