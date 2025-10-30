@@ -6,6 +6,7 @@ const apiRouter = require('./routes/api');
 const adminRouter = require('./routes/admin');
 const fileUploadRouter = require('./routes/fileUpload');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandlers');
+const { startDocumentParserWorker } = require('./workers/documentParser');
 
 const app = express();
 
@@ -66,5 +67,9 @@ app.use('/admin', adminRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
+
+if (process.env.DISABLE_BACKGROUND_WORKERS !== 'true') {
+  startDocumentParserWorker();
+}
 
 module.exports = app;
