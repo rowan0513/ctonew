@@ -48,6 +48,17 @@ Starts the Next.js development server and validates your environment variables o
 
 Husky’s pre-commit hook runs `pnpm lint-staged`, followed by `pnpm typecheck` and `pnpm test` to keep commits clean.
 
+## Embedding the EzChat widget
+
+The admin app ships with an embed snippet tool for each workspace. Open `/workspaces/ws_northwind_support/embed` to review the configuration process:
+
+1. **Publish the workspace** when your configuration is ready. Snippets remain read-only until the workspace is published.
+2. **Choose a snippet type** – the script loader attaches the widget globally, while the iframe variant keeps it sandboxed for portals or dashboards.
+3. **Optionally supply theme overrides** (for example primary color, background color, or border radius) before copying a snippet.
+4. **Copy the snippet** using the built-in clipboard buttons. Successful copies trigger a confirmation toast; attempts while unpublished surface a guard message instead.
+
+The embed page includes an onboarding checklist and links back to this README so operations teams have step-by-step guidance when rolling the widget out to new surfaces.
+
 ## Project structure
 
 ```
