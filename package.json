@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "check:env": "node ./scripts/check-env-example.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -12,9 +13,11 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "seed": "node ./scripts/seed.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
     "next": "14.2.33",
     "react": "18.3.1",
     "react-dom": "18.3.1",
