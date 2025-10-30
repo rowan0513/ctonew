@@ -19,3 +19,14 @@ for (const [key, value] of Object.entries(requiredTestEnv)) {
     process.env[key] = value;
   }
 }
+
+if (typeof global.ResizeObserver === "undefined") {
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+
+  // @ts-expect-error - assign to global scope used by charting libraries
+  global.ResizeObserver = ResizeObserver;
+}

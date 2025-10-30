@@ -35,7 +35,7 @@ Bootstrap Next.js 14 admin workspace for the EzChat team. The stack ships with t
    ```bash
    pnpm seed
    ```
-   This creates a demo workspace, data sources, and conversation records so the UI has meaningful fixtures on first load.
+   This creates a demo workspace, data sources, conversation records, and seeded analytics events so the dashboard has meaningful fixtures on first load.
 
 ### Development
 
@@ -53,6 +53,7 @@ The seed script (`pnpm seed`) uses `@neondatabase/serverless` to connect to the 
 2. Upsert the `ezchat-demo` workspace with consistent metadata.
 3. Synchronise three canonical data sources (Zendesk, Intercom, Salesforce) with connection details stored as JSONB.
 4. Reset demo conversation data for the workspace so repeated runs remain deterministic.
+5. Generate 30 days of analytics events across production, preview, and test environments so the dashboard has meaningful telemetry.
 
 The script runs inside a transaction and rolls back on failure. Provide valid credentials before executing to avoid partial state.
 
