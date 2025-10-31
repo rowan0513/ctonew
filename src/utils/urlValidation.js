@@ -49,20 +49,29 @@ const assertSafeUrl = (inputUrl) => {
   return parsedUrl;
 };
 
-const safeFetch = async (inputUrl) => {
+const safeFetch = async (inputUrl, options = {}) => {
   const parsedUrl = assertSafeUrl(inputUrl);
   const controller = new AbortController();
-  const timeoutInMs = Number(process.env.CRAWLER_TIMEOUT_MS || 5000);
+  const timeoutInMs = Number(options.timeoutMs || process.env.CRAWLER_TIMEOUT_MS || 5000);
 
   const timeout = setTimeout(() => controller.abort(), timeoutInMs);
 
+  const requestInit = {
+    method: options.method || 'GET',
+    redirect: options.redirect || 'error',
+    signal: controller.signal,
+    headers: {
+      ...(options.headers || {})
+    }
+  };
+
+  if (options.userAgent) {
+    requestInit.headers['User-Agent'] = options.userAgent;
+  }
+
   let response;
   try {
-    response = await fetch(parsedUrl.toString(), {
-      method: 'GET',
-      redirect: 'error',
-      signal: controller.signal
-    });
+    response = await fetch(parsedUrl.toString(), requestInit);
   } catch (error) {
     if (error.name === 'AbortError') {
       const err = new Error('Request timed out while fetching remote content.');
@@ -76,14 +85,19 @@ const safeFetch = async (inputUrl) => {
     clearTimeout(timeout);
   }
 
-  const maxBytes = Number(process.env.CRAWLER_MAX_RESPONSE_BYTES || 1024 * 1024); // 1MB
+  const maxBytes =
+    typeof options.maxBytes === 'number'
+      ? options.maxBytes
+      : Number(process.env.CRAWLER_MAX_RESPONSE_BYTES || 1024 * 1024); // 1MB default
+
   const stream = response.body;
 
   if (!stream) {
     return {
       status: response.status,
       headers: Object.fromEntries(response.headers.entries()),
-      body: ''
+      body: '',
+      finalUrl: response.url
     };
   }
 
@@ -95,7 +109,7 @@ const safeFetch = async (inputUrl) => {
     const { value, done } = await reader.read();
     if (done) break;
     bytesRead += value.length;
-    if (bytesRead > maxBytes) {
+    if (typeof maxBytes === 'number' && bytesRead > maxBytes) {
       reader.releaseLock();
       const err = new Error('Response size exceeds configured limit.');
       err.statusCode = 413;
@@ -109,7 +123,8 @@ const safeFetch = async (inputUrl) => {
   return {
     status: response.status,
     headers: Object.fromEntries(response.headers.entries()),
-    body
+    body,
+    finalUrl: response.url
   };
 };
 

@@ -43,7 +43,10 @@ const getDb = () => {
       workspace_id TEXT NOT NULL,
       file_name TEXT NOT NULL,
       description TEXT,
+      source_type TEXT DEFAULT 'file_upload',
       expected_mime_type TEXT NOT NULL,
+      canonical_url TEXT,
+      url_hash TEXT,
       mime_type TEXT,
       size_bytes INTEGER,
       hash TEXT,
@@ -57,6 +60,23 @@ const getDb = () => {
       updated_at TEXT NOT NULL
     );
   `);
+
+  const columns = dbInstance
+    .prepare('PRAGMA table_info(documents)')
+    .all()
+    .map((column) => column.name);
+
+  if (!columns.includes('source_type')) {
+    dbInstance.exec("ALTER TABLE documents ADD COLUMN source_type TEXT DEFAULT 'file_upload'");
+  }
+
+  if (!columns.includes('canonical_url')) {
+    dbInstance.exec('ALTER TABLE documents ADD COLUMN canonical_url TEXT');
+  }
+
+  if (!columns.includes('url_hash')) {
+    dbInstance.exec('ALTER TABLE documents ADD COLUMN url_hash TEXT');
+  }
 
   return dbInstance;
 };
