@@ -1,0 +1,29 @@
+{
+  "name": "chunking-embeddings-pipeline",
+  "version": "0.1.0",
+  "description": "Automated training pipeline for document chunk embeddings",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "dependencies": {
+    "@dqbd/tiktoken": "^1.0.15",
+    "bullmq": "^4.13.2",
+    "franc": "^6.1.0",
+    "ioredis": "^5.4.1",
+    "openai": "^4.38.2",
+    "pg": "^8.12.0",
+    "pgvector": "^0.1.8",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/franc": "^6.1.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.5.3"
+  }
+}
