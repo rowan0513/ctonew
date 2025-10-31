@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 14% 97%;
+  --foreground: 226 15% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: var(--foreground);
+  --muted: 220 14% 96%;
+  --muted-foreground: 223 9% 45%;
+  --accent: 220 90% 96%;
+  --accent-foreground: 224 71% 14%;
+  --destructive: 0 68% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 13% 91%;
+  --border-muted: 220 11% 85%;
+  --input: 220 13% 91%;
+  --ring: 226 70% 54%;
+  --primary: 226 71% 49%;
+  --primary-50: 226 71% 97%;
+  --primary-100: 226 71% 94%;
+  --primary-200: 226 71% 85%;
+  --primary-300: 226 71% 75%;
+  --primary-400: 226 71% 64%;
+  --primary-600: 226 71% 42%;
+  --primary-700: 226 71% 34%;
+  --primary-800: 226 71% 27%;
+  --primary-900: 226 71% 20%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 166 70% 50%;
+  --secondary-foreground: 166 20% 15%;
+  --background-strong: 224 71% 12%;
+  --secondary-muted: 166 48% 88%;
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.375rem;
+  --font-heading: var(--font-sans);
+}
+
+.dark {
+  --background: 224 47% 7%;
+  --foreground: 215 20% 96%;
+  --card: 224 47% 9%;
+  --card-foreground: 210 20% 96%;
+  --muted: 224 26% 15%;
+  --muted-foreground: 215 20% 72%;
+  --accent: 224 55% 16%;
+  --accent-foreground: 213 31% 91%;
+  --destructive: 0 62% 52%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 224 29% 20%;
+  --border-muted: 224 26% 25%;
+  --input: 224 29% 20%;
+  --ring: 226 71% 57%;
+  --primary: 224 71% 58%;
+  --primary-50: 224 71% 95%;
+  --primary-100: 224 71% 90%;
+  --primary-200: 224 71% 77%;
+  --primary-300: 224 71% 67%;
+  --primary-400: 224 71% 62%;
+  --primary-600: 224 71% 52%;
+  --primary-700: 224 71% 45%;
+  --primary-800: 224 71% 39%;
+  --primary-900: 224 71% 33%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 166 70% 48%;
+  --secondary-foreground: 166 20% 12%;
+  --background-strong: 224 47% 4%;
+  --secondary-muted: 166 48% 20%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading tracking-tight text-foreground;
+  }
+
+  a {
+    @apply text-primary transition-colors hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+}

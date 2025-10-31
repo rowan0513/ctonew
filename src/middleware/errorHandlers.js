@@ -1,4 +1,5 @@
 const { ZodError } = require('zod');
+const { getLogger } = require('../observability/logger');
 
 const notFoundHandler = (req, res) => {
   res.status(404).json({ error: 'NotFound', message: 'The requested resource could not be located.' });
@@ -28,6 +29,24 @@ const errorHandler = (error, req, res, next) => {
 
   const status = error.statusCode || error.status || 500;
   const message = status >= 500 ? 'An unexpected error occurred.' : error.message;
+  const logger = (res && res.locals && res.locals.logger) || getLogger();
+  const logPayload = {
+    event: 'http.error',
+    statusCode: status,
+    error: {
+      name: error.name,
+      message: error.message
+    }
+  };
+
+  if (status >= 500) {
+    if (process.env.LOG_VERBOSE === 'true' && error.stack) {
+      logPayload.error.stack = error.stack;
+    }
+    logger.error(logPayload, 'Unhandled server error.');
+  } else {
+    logger.warn(logPayload, 'Handled request error.');
+  }
 
   res.status(status).json({
     error: error.code || error.name || 'InternalServerError',

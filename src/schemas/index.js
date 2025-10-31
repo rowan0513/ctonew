@@ -19,6 +19,14 @@ const crawlSchema = z.object({
   url: z.string().url('URL must be valid.')
 });
 
+const chatSchema = z.object({
+  message: z
+    .string()
+    .min(1, 'Message is required.')
+    .max(4000, 'Message must be under 4000 characters.'),
+  model: z.string().max(64).optional()
+});
+
 const fileMetadataSchema = z.object({
   description: z.string().max(200).optional()
 });
@@ -52,4 +60,6 @@ module.exports = {
   fileMetadataSchema,
   fileUploadRequestSchema,
   fileUploadCompletionSchema
+  chatSchema,
+  fileMetadataSchema
 };
