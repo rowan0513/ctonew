@@ -36,6 +36,11 @@ export const brandingSchema = z.object({
   background: hexColorSchema,
 });
 
+export const workspaceApiKeySchema = z
+  .string({ required_error: "Workspace API key is required" })
+  .min(20, "API key must be at least 20 characters long")
+  .regex(/^[A-Za-z0-9_-]+$/u, "API key may only contain letters, numbers, hyphens, and underscores");
+
 const logoSchema = z
   .string()
   .trim()
@@ -96,9 +101,11 @@ export const workspaceRecordSchema = workspaceInputSchema.extend({
   status: workspaceStatusSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
+  apiKey: workspaceApiKeySchema,
 });
 
 export type WorkspaceInput = z.infer<typeof workspaceInputSchema>;
 export type WorkspaceRecord = z.infer<typeof workspaceRecordSchema>;
 export type WorkspaceStatus = z.infer<typeof workspaceStatusSchema>;
 export type WorkspaceLanguage = SupportedLanguage;
+export type WorkspaceApiKey = z.infer<typeof workspaceApiKeySchema>;

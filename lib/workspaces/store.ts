@@ -18,6 +18,12 @@ const globalWorkspaceStore = globalThis as typeof globalThis & {
   __ezchatWorkspaceStore?: WorkspaceStore;
 };
 
+const API_KEY_PREFIX = "wk_";
+
+function generateWorkspaceApiKey(): string {
+  return `${API_KEY_PREFIX}${randomUUID().replace(/-/g, "")}`;
+}
+
 const DEFAULT_WORKSPACE_DRAFT: WorkspaceInput = {
   name: "",
   description: "",
@@ -58,7 +64,7 @@ function seedWorkspaces(): WorkspaceRecord[] {
   const now = new Date();
   const isoNow = now.toISOString();
 
-  const examples: Array<Omit<WorkspaceRecord, "id" | "createdAt" | "updatedAt">> = [
+  const examples: Array<Omit<WorkspaceRecord, "id" | "createdAt" | "updatedAt" | "apiKey">> = [
     {
       name: "EzChat Demo",
       description:
@@ -106,6 +112,7 @@ function seedWorkspaces(): WorkspaceRecord[] {
       id: randomUUID(),
       createdAt: isoNow,
       updatedAt: isoNow,
+      apiKey: generateWorkspaceApiKey(),
       ...workspace,
     }),
   );
@@ -170,6 +177,12 @@ export function getWorkspaceById(id: string): WorkspaceRecord | null {
   return workspace ? cloneWorkspace(workspace) : null;
 }
 
+export function getWorkspaceByApiKey(apiKey: string): WorkspaceRecord | null {
+  const store = getWorkspaceStore();
+  const workspace = store.workspaces.find((item) => item.apiKey === apiKey);
+  return workspace ? cloneWorkspace(workspace) : null;
+}
+
 export function createWorkspace(input: WorkspaceInput, actor: string): WorkspaceRecord {
   const normalized = normalizeInput(workspaceInputSchema.parse(input));
   const now = new Date().toISOString();
@@ -179,6 +192,7 @@ export function createWorkspace(input: WorkspaceInput, actor: string): Workspace
     status: workspaceStatusSchema.enum.active,
     createdAt: now,
     updatedAt: now,
+    apiKey: generateWorkspaceApiKey(),
     ...normalized,
   });
 
