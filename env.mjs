@@ -33,6 +33,18 @@ export const serverSchema = z.object({
   OUTBOUND_WEBHOOK_SECRET: z
     .string({ required_error: "OUTBOUND_WEBHOOK_SECRET is required" })
     .min(1, "OUTBOUND_WEBHOOK_SECRET cannot be empty"),
+  ADMIN_EMAIL: z
+    .string({ required_error: "ADMIN_EMAIL is required" })
+    .email("ADMIN_EMAIL must be a valid email address"),
+  ADMIN_PASSWORD_HASH: z
+    .string({ required_error: "ADMIN_PASSWORD_HASH is required" })
+    .regex(
+      /^\$2[aby]\$[0-9]{2}\$[./0-9A-Za-z]{53}$/,
+      "ADMIN_PASSWORD_HASH must be a valid bcrypt hash",
+    ),
+  SESSION_SECRET: z
+    .string({ required_error: "SESSION_SECRET is required" })
+    .min(32, "SESSION_SECRET must be at least 32 characters"),
 });
 
 export const clientSchema = z.object({
@@ -76,6 +88,16 @@ const serverEnvResult = serverSchema.safeParse({
   OUTBOUND_WEBHOOK_SECRET:
     process.env.OUTBOUND_WEBHOOK_SECRET ??
     (allowFallbackValues ? "test-outbound-webhook" : undefined),
+  ADMIN_EMAIL:
+    process.env.ADMIN_EMAIL ?? (allowFallbackValues ? "admin@ezchat.io" : undefined),
+  ADMIN_PASSWORD_HASH:
+    process.env.ADMIN_PASSWORD_HASH ??
+    (allowFallbackValues
+      ? "$2b$12$bXzMFF/KQgdsLj1pl9PzY.r1Bv.kfe2zKKKw3n0EoHoRTvUG.iB6a"
+      : undefined),
+  SESSION_SECRET:
+    process.env.SESSION_SECRET ??
+    (allowFallbackValues ? "test-session-secret-change-me-please-123456789" : undefined),
 });
 
 if (!serverEnvResult.success) {
