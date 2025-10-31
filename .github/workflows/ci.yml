@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+      NODE_ENV: test
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      OPENAI_API_KEY: test-ci-key
+      POSTGRES_URL: postgresql://demo_user:demo_pass@localhost:5432/ezchat_demo
+      REDIS_URL: redis://localhost:6379
+      AWS_S3_ACCESS_KEY_ID: test-access-key
+      AWS_S3_SECRET_ACCESS_KEY: test-secret-key
+      AWS_S3_BUCKET: ezchat-ci-artifacts
+      AWS_S3_REGION: us-east-1
+      INBOUND_WEBHOOK_SECRET: ci-inbound-secret
+      OUTBOUND_WEBHOOK_SECRET: ci-outbound-secret
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check environment schema alignment
+        run: pnpm check:env
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('next.config.mjs', 'package.json', 'tsconfig.json', 'tailwind.config.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ hashFiles('pnpm-lock.yaml') }}-
+            ${{ runner.os }}-next-
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
