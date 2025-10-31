@@ -6,11 +6,14 @@ const apiRouter = require('./routes/api');
 const adminRouter = require('./routes/admin');
 const fileUploadRouter = require('./routes/fileUpload');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandlers');
+const { requestContextMiddleware } = require('./middleware/requestContext');
+const { jobQueue } = require('./services/jobQueue');
 
 const app = express();
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+app.locals.jobQueue = jobQueue;
 
 const requestSizeLimit = process.env.REQUEST_SIZE_LIMIT || '1mb';
 
@@ -44,6 +47,8 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(requestContextMiddleware);
+
 app.use(express.json({ limit: requestSizeLimit }));
 app.use(express.urlencoded({ extended: true, limit: requestSizeLimit }));
 app.use(express.text({ limit: requestSizeLimit }));
@@ -51,6 +56,10 @@ app.use(express.text({ limit: requestSizeLimit }));
 app.use((req, res, next) => {
   const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
   if (process.env.NODE_ENV === 'production' && !isSecure) {
+    if (res.locals.logger) {
+      res.locals.logger.warn({ event: 'http.insecure', host: req.hostname }, 'Rejected insecure request in production.');
+    }
+
     return res.status(400).json({
       error: 'HTTPSRequired',
       message: 'HTTPS is required for this endpoint.'
