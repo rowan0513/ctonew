@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const serverSchema = z.object({
+export const serverSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"], {
       errorMap: () => ({ message: "NODE_ENV must be development, test, or production" }),
@@ -47,7 +47,7 @@ const serverSchema = z.object({
     .min(32, "SESSION_SECRET must be at least 32 characters"),
 });
 
-const clientSchema = z.object({
+export const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z
     .string({ required_error: "NEXT_PUBLIC_APP_URL is required" })
     .url("NEXT_PUBLIC_APP_URL must be a valid URL"),
@@ -71,9 +71,11 @@ const serverEnvResult = serverSchema.safeParse({
   OPENAI_API_KEY:
     process.env.OPENAI_API_KEY ?? (allowFallbackValues ? "test-openai-key" : undefined),
   POSTGRES_URL:
-    process.env.POSTGRES_URL ?? (allowFallbackValues ? "https://postgres.test.local" : undefined),
+    process.env.POSTGRES_URL ??
+    (allowFallbackValues ? "postgresql://demo_user:demo_pass@postgres.test.local:5432/ezchat_demo" : undefined),
   REDIS_URL:
-    process.env.REDIS_URL ?? (allowFallbackValues ? "https://redis.test.local" : undefined),
+    process.env.REDIS_URL ??
+    (allowFallbackValues ? "redis://redis.test.local:6379" : undefined),
   AWS_S3_ACCESS_KEY_ID:
     process.env.AWS_S3_ACCESS_KEY_ID ?? (allowFallbackValues ? "test-access-key" : undefined),
   AWS_S3_SECRET_ACCESS_KEY:
