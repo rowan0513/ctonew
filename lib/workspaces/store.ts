@@ -24,6 +24,11 @@ function generateWorkspaceApiKey(): string {
   return `${API_KEY_PREFIX}${randomUUID().replace(/-/g, "")}`;
 }
 
+const DEFAULT_WEBHOOK_RETRY_POLICY = {
+  maxAttempts: 3,
+  baseDelaySeconds: 30,
+} as const;
+
 const DEFAULT_WORKSPACE_DRAFT: WorkspaceInput = {
   name: "",
   description: "",
@@ -38,8 +43,12 @@ const DEFAULT_WORKSPACE_DRAFT: WorkspaceInput = {
   },
   confidenceThreshold: 0.65,
   webhook: {
+    enabled: false,
     url: "",
     secret: "",
+    retryPolicy: {
+      ...DEFAULT_WEBHOOK_RETRY_POLICY,
+    },
   },
 };
 
@@ -80,8 +89,12 @@ function seedWorkspaces(): WorkspaceRecord[] {
       },
       confidenceThreshold: 0.72,
       webhook: {
+        enabled: true,
         url: "https://hooks.ezchat.io/workspaces/ezchat-demo",
         secret: "demo-webhook-secret",
+        retryPolicy: {
+          ...DEFAULT_WEBHOOK_RETRY_POLICY,
+        },
       },
       status: "active",
     },
@@ -100,8 +113,12 @@ function seedWorkspaces(): WorkspaceRecord[] {
       },
       confidenceThreshold: 0.64,
       webhook: {
+        enabled: true,
         url: "https://hooks.ezchat.io/workspaces/internal-qa",
         secret: "qa-webhook-secret",
+        retryPolicy: {
+          ...DEFAULT_WEBHOOK_RETRY_POLICY,
+        },
       },
       status: "active",
     },
@@ -123,6 +140,34 @@ function cloneWorkspace<T>(value: T): T {
 }
 
 function normalizeInput(input: WorkspaceInput): WorkspaceInput {
+  const retryPolicy = input.webhook.retryPolicy ?? {
+    ...DEFAULT_WEBHOOK_RETRY_POLICY,
+  };
+
+  const maxAttemptsValue = Number(retryPolicy.maxAttempts);
+  const baseDelayValue = Number(retryPolicy.baseDelaySeconds);
+
+  const normalizedRetryPolicy = {
+    maxAttempts: Math.min(
+      5,
+      Math.max(
+        1,
+        Math.round(
+          Number.isFinite(maxAttemptsValue) ? maxAttemptsValue : DEFAULT_WEBHOOK_RETRY_POLICY.maxAttempts,
+        ),
+      ),
+    ),
+    baseDelaySeconds: Math.min(
+      300,
+      Math.max(
+        1,
+        Math.round(
+          Number.isFinite(baseDelayValue) ? baseDelayValue : DEFAULT_WEBHOOK_RETRY_POLICY.baseDelaySeconds,
+        ),
+      ),
+    ),
+  } satisfies WorkspaceInput["webhook"]["retryPolicy"];
+
   return {
     ...input,
     logo: input.logo ? input.logo : null,
@@ -131,9 +176,12 @@ function normalizeInput(input: WorkspaceInput): WorkspaceInput {
       ...input.branding,
     },
     webhook: {
-      ...input.webhook,
+      enabled: Boolean(input.webhook.enabled),
+      url: input.webhook.url?.trim() ?? "",
+      secret: input.webhook.secret?.trim() ?? "",
+      retryPolicy: normalizedRetryPolicy,
     },
-  };
+  } satisfies WorkspaceInput;
 }
 
 function sortWorkspaces(workspaces: WorkspaceRecord[]): WorkspaceRecord[] {

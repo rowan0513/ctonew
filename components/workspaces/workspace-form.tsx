@@ -12,6 +12,20 @@ import { supportedLanguages, workspaceToneOfVoiceOptions } from "@/lib/workspace
 
 const MAX_LOGO_SIZE = 1024 * 1024 * 2; // 2MB
 
+const DEFAULT_WEBHOOK_RETRY_POLICY = {
+  maxAttempts: 3,
+  baseDelaySeconds: 30,
+} as const;
+
+const RETRY_LIMITS = {
+  maxAttempts: { min: 1, max: 5 },
+  baseDelaySeconds: { min: 1, max: 300 },
+} as const;
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 export type WorkspaceFormValues = WorkspaceInput;
 
 type FieldErrors = Record<string, string | undefined>;
@@ -75,6 +89,23 @@ function toFormValues(workspace: WorkspaceRecord): WorkspaceFormValues {
 }
 
 function normalizeValues(values: WorkspaceFormValues): WorkspaceFormValues {
+  const retryPolicy = values.webhook?.retryPolicy ?? DEFAULT_WEBHOOK_RETRY_POLICY;
+
+  const normalizedRetryPolicy = {
+    maxAttempts: clampNumber(
+      Math.round(Number.isFinite(Number(retryPolicy.maxAttempts)) ? Number(retryPolicy.maxAttempts) : 0) ||
+        DEFAULT_WEBHOOK_RETRY_POLICY.maxAttempts,
+      RETRY_LIMITS.maxAttempts.min,
+      RETRY_LIMITS.maxAttempts.max,
+    ),
+    baseDelaySeconds: clampNumber(
+      Math.round(Number.isFinite(Number(retryPolicy.baseDelaySeconds)) ? Number(retryPolicy.baseDelaySeconds) : 0) ||
+        DEFAULT_WEBHOOK_RETRY_POLICY.baseDelaySeconds,
+      RETRY_LIMITS.baseDelaySeconds.min,
+      RETRY_LIMITS.baseDelaySeconds.max,
+    ),
+  } satisfies WorkspaceFormValues["webhook"]["retryPolicy"];
+
   return {
     ...values,
     logo: values.logo ? values.logo : null,
@@ -83,7 +114,10 @@ function normalizeValues(values: WorkspaceFormValues): WorkspaceFormValues {
       ...values.branding,
     },
     webhook: {
-      ...values.webhook,
+      enabled: Boolean(values.webhook.enabled),
+      url: values.webhook.url?.trim() ?? "",
+      secret: values.webhook.secret?.trim() ?? "",
+      retryPolicy: normalizedRetryPolicy,
     },
   };
 }
@@ -154,6 +188,43 @@ export function WorkspaceForm({ mode, workspaceId, initialValues, onSuccess }: W
     updateValue("confidenceThreshold", Number(normalized.toFixed(2)));
   }
 
+  function handleWebhookEnabledChange(event: React.ChangeEvent<HTMLInputElement>) {
+    updateValue("webhook", {
+      ...values.webhook,
+      enabled: event.target.checked,
+    });
+  }
+
+  function handleRetryMaxAttemptsChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const parsed = Number.parseInt(event.target.value, 10);
+    const nextValue = Number.isNaN(parsed) ? values.webhook.retryPolicy.maxAttempts : parsed;
+
+    updateValue("webhook", {
+      ...values.webhook,
+      retryPolicy: {
+        ...values.webhook.retryPolicy,
+        maxAttempts: clampNumber(nextValue, RETRY_LIMITS.maxAttempts.min, RETRY_LIMITS.maxAttempts.max),
+      },
+    });
+  }
+
+  function handleRetryBaseDelayChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const parsed = Number.parseInt(event.target.value, 10);
+    const nextValue = Number.isNaN(parsed) ? values.webhook.retryPolicy.baseDelaySeconds : parsed;
+
+    updateValue("webhook", {
+      ...values.webhook,
+      retryPolicy: {
+        ...values.webhook.retryPolicy,
+        baseDelaySeconds: clampNumber(
+          nextValue,
+          RETRY_LIMITS.baseDelaySeconds.min,
+          RETRY_LIMITS.baseDelaySeconds.max,
+        ),
+      },
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -213,7 +284,7 @@ export function WorkspaceForm({ mode, workspaceId, initialValues, onSuccess }: W
     }
 
     const data = (await response.json()) as { workspace: WorkspaceRecord };
-    setValues(toFormValues(data.workspace));
+    setValues(normalizeValues(toFormValues(data.workspace)));
     setFieldErrors({});
     setFormError(null);
     onSuccess?.(data.workspace);
@@ -417,25 +488,101 @@ export function WorkspaceForm({ mode, workspaceId, initialValues, onSuccess }: W
             <p className="text-sm text-destructive">{fieldErrors.confidenceThreshold}</p>
           ) : null}
         </div>
-        <div className="space-y-4">
-          <Label htmlFor="webhook-url">Webhook URL</Label>
-          <Input
-            id="webhook-url"
-            name="webhook.url"
-            value={values.webhook.url}
-            onChange={(event) => updateValue("webhook", { ...values.webhook, url: event.target.value })}
-            placeholder="https://hooks.ezchat.io/workspaces/customer-success"
-          />
-          {fieldErrors["webhook.url"] ? <p className="text-sm text-destructive">{fieldErrors["webhook.url"]}</p> : null}
-          <Label htmlFor="webhook-secret">Webhook secret</Label>
-          <Input
-            id="webhook-secret"
-            name="webhook.secret"
-            value={values.webhook.secret}
-            onChange={(event) => updateValue("webhook", { ...values.webhook, secret: event.target.value })}
-            placeholder="Set this in downstream systems"
-          />
-          {fieldErrors["webhook.secret"] ? <p className="text-sm text-destructive">{fieldErrors["webhook.secret"]}</p> : null}
+        <div className="space-y-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="webhook-enabled">Webhook notifications</Label>
+              <p className="text-xs text-muted-foreground">
+                Deliver signed POST requests when responses need human handover or a fallback model is invoked.
+              </p>
+            </div>
+            <label
+              htmlFor="webhook-enabled"
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+            >
+              <input
+                id="webhook-enabled"
+                name="webhook.enabled"
+                type="checkbox"
+                checked={values.webhook.enabled}
+                onChange={handleWebhookEnabledChange}
+                className="h-4 w-4 accent-primary-500"
+              />
+              <span>{values.webhook.enabled ? "Enabled" : "Disabled"}</span>
+            </label>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="webhook-url">Webhook URL</Label>
+              <Input
+                id="webhook-url"
+                name="webhook.url"
+                value={values.webhook.url}
+                onChange={(event) => updateValue("webhook", { ...values.webhook, url: event.target.value })}
+                placeholder="https://hooks.ezchat.io/workspaces/customer-success"
+              />
+              {fieldErrors["webhook.url"] ? (
+                <p className="text-sm text-destructive">{fieldErrors["webhook.url"]}</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="webhook-secret">Webhook secret</Label>
+              <Input
+                id="webhook-secret"
+                name="webhook.secret"
+                value={values.webhook.secret}
+                onChange={(event) => updateValue("webhook", { ...values.webhook, secret: event.target.value })}
+                placeholder="Set the shared secret used to verify signatures"
+              />
+              {fieldErrors["webhook.secret"] ? (
+                <p className="text-sm text-destructive">{fieldErrors["webhook.secret"]}</p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="webhook-retry-attempts">Retry attempts</Label>
+                <Input
+                  id="webhook-retry-attempts"
+                  name="webhook.retryPolicy.maxAttempts"
+                  type="number"
+                  inputMode="numeric"
+                  min={RETRY_LIMITS.maxAttempts.min}
+                  max={RETRY_LIMITS.maxAttempts.max}
+                  value={values.webhook.retryPolicy.maxAttempts}
+                  onChange={handleRetryMaxAttemptsChange}
+                />
+                {fieldErrors["webhook.retryPolicy.maxAttempts"] ? (
+                  <p className="text-sm text-destructive">{fieldErrors["webhook.retryPolicy.maxAttempts"]}</p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="webhook-retry-delay">Base delay (seconds)</Label>
+                <Input
+                  id="webhook-retry-delay"
+                  name="webhook.retryPolicy.baseDelaySeconds"
+                  type="number"
+                  inputMode="numeric"
+                  min={RETRY_LIMITS.baseDelaySeconds.min}
+                  max={RETRY_LIMITS.baseDelaySeconds.max}
+                  value={values.webhook.retryPolicy.baseDelaySeconds}
+                  onChange={handleRetryBaseDelayChange}
+                />
+                {fieldErrors["webhook.retryPolicy.baseDelaySeconds"] ? (
+                  <p className="text-sm text-destructive">
+                    {fieldErrors["webhook.retryPolicy.baseDelaySeconds"]}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Deliveries retry with exponential backoff and include an <code>X-Ezchat-Signature</code> header for
+              verification.
+            </p>
+          </div>
         </div>
       </section>
 

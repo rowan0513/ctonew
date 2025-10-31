@@ -21,14 +21,68 @@ const hexColorSchema = z
   .string({ required_error: "Brand color is required" })
   .regex(/^#(?:[0-9a-fA-F]{3}){1,2}$/u, "Enter a valid hex color (e.g. #2563eb)");
 
-export const webhookSettingsSchema = z.object({
-  url: z
-    .string({ required_error: "Webhook URL is required" })
-    .url("Webhook URL must be a valid URL"),
-  secret: z
-    .string({ required_error: "Webhook secret is required" })
-    .min(8, "Webhook secret must be at least 8 characters"),
+const optionalWebhookUrlSchema = z
+  .string({ required_error: "Webhook URL is required" })
+  .trim()
+  .refine((value) => {
+    if (value.length === 0) {
+      return true;
+    }
+
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "https:" || parsed.protocol === "http:";
+    } catch {
+      return false;
+    }
+  }, "Webhook URL must be a valid URL");
+
+const optionalWebhookSecretSchema = z
+  .string({ required_error: "Webhook secret is required" })
+  .trim()
+  .refine((value) => value.length === 0 || value.length >= 8, "Webhook secret must be at least 8 characters");
+
+export const webhookRetryPolicySchema = z.object({
+  maxAttempts: z
+    .number({ required_error: "Retry attempts are required" })
+    .int("Retry attempts must be a whole number")
+    .min(1, "Retry attempts must be at least 1")
+    .max(5, "Retry attempts cannot exceed 5"),
+  baseDelaySeconds: z
+    .number({ required_error: "Retry base delay is required" })
+    .int("Retry base delay must be a whole number")
+    .min(1, "Retry delay must be at least 1 second")
+    .max(300, "Retry delay cannot exceed 300 seconds"),
 });
+
+export const webhookSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    url: optionalWebhookUrlSchema,
+    secret: optionalWebhookSecretSchema,
+    retryPolicy: webhookRetryPolicySchema,
+  })
+  .superRefine((value, ctx) => {
+    if (!value.enabled) {
+      return;
+    }
+
+    if (!value.url) {
+      ctx.addIssue({
+        path: ["url"],
+        code: z.ZodIssueCode.custom,
+        message: "Webhook URL is required when the webhook is enabled",
+      });
+    }
+
+    if (!value.secret) {
+      ctx.addIssue({
+        path: ["secret"],
+        code: z.ZodIssueCode.custom,
+        message: "Webhook secret is required when the webhook is enabled",
+      });
+    }
+  });
 
 export const brandingSchema = z.object({
   primary: hexColorSchema,
@@ -104,6 +158,8 @@ export const workspaceRecordSchema = workspaceInputSchema.extend({
   apiKey: workspaceApiKeySchema,
 });
 
+export type WebhookRetryPolicy = z.infer<typeof webhookRetryPolicySchema>;
+export type WorkspaceWebhookSettings = z.infer<typeof webhookSettingsSchema>;
 export type WorkspaceInput = z.infer<typeof workspaceInputSchema>;
 export type WorkspaceRecord = z.infer<typeof workspaceRecordSchema>;
 export type WorkspaceStatus = z.infer<typeof workspaceStatusSchema>;
