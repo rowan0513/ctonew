@@ -1,0 +1,55 @@
+{
+  "name": "secure-api",
+  "version": "1.0.0",
+  "description": "Baseline secure API with validation and security safeguards.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "lint": "echo 'No linting configured'",
+    "audit": "npm audit",
+    "audit:ci": "npm audit --audit-level=high"
+  },
+  "keywords": [
+    "security",
+    "express",
+    "validation",
+    "zod"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.920.0",
+    "@aws-sdk/s3-request-presigner": "^3.920.0",
+    "better-sqlite3": "^12.4.1",
+    "bullmq": "^5.62.1",
+    "cheerio": "^1.1.2",
+    "cld3-asm": "^4.0.0",
+    "csv-parse": "^6.1.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "fast-xml-parser": "^5.3.0",
+    "file-type": "^21.0.0",
+    "helmet": "^7.0.0",
+    "ioredis": "^5.8.2",
+    "ioredis-mock": "^8.13.1",
+    "mammoth": "^1.11.0",
+    "multer": "^2.0.0",
+    "normalize-url": "^8.1.0",
+    "pdf-parse": "^2.4.5",
+    "robots-parser": "^3.0.1",
+    "sanitize-html": "^2.13.0",
+    "uuid": "^13.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.1.3"
+  }
+}
