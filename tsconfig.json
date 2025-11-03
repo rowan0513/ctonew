@@ -33,6 +33,7 @@
     "**/*.mts",
     "src",
     "drizzle.config.ts"
+    "**/*.mjs"
   ],
   "exclude": ["node_modules", "dist"]
 }

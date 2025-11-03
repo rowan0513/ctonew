@@ -7,8 +7,6 @@ import type { NextRequest, NextResponse } from "next/server";
 
 import { env, isProduction } from "@/env.mjs";
 
-import { getConfiguredAdminEmail } from "./admin";
-
 export const SESSION_COOKIE_NAME = "ezchat_admin_session";
 export const SESSION_MAX_AGE = 60 * 60 * 8; // 8 hours
 
@@ -79,12 +77,6 @@ function parseToken(token: string): AdminSession | null {
       return null;
     }
 
-    const normalizedEmail = getConfiguredAdminEmail();
-
-    if (parsed.email !== normalizedEmail) {
-      return null;
-    }
-
     return parsed;
   } catch {
     return null;
@@ -113,11 +105,7 @@ function buildSession(email: string): AdminSession {
 }
 
 export function createSessionToken(email: string): { token: string; session: AdminSession } {
-  const normalizedEmail = getConfiguredAdminEmail();
-
-  if (normalizedEmail !== email.trim().toLowerCase()) {
-    throw new UnauthorizedError("Invalid admin session request");
-  }
+  const normalizedEmail = email.trim().toLowerCase();
 
   const session = buildSession(normalizedEmail);
   return {
