@@ -1,38 +1,62 @@
 import "server-only";
 
 import bcrypt from "bcryptjs";
+import { eq, sql } from "drizzle-orm";
 
-import { env } from "@/env.mjs";
+import { db } from "@/lib/db";
+import { adminUsers } from "@/src/schema";
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export function getConfiguredAdminEmail(): string {
-  return normalizeEmail(env.ADMIN_EMAIL);
-}
-
 export async function verifyAdminCredentials(
   email: string,
   password: string,
-): Promise<boolean> {
+): Promise<{ valid: boolean; email?: string }> {
   const normalizedEmail = normalizeEmail(email);
-  const expectedEmail = getConfiguredAdminEmail();
-
-  if (normalizedEmail !== expectedEmail) {
-    return false;
-  }
 
   if (!password) {
-    return false;
+    return { valid: false };
   }
 
   try {
-    return await bcrypt.compare(password, env.ADMIN_PASSWORD_HASH);
+    const results = await db
+      .select({
+        email: adminUsers.email,
+        passwordHash: adminUsers.passwordHash,
+        status: adminUsers.status,
+      })
+      .from(adminUsers)
+      .where(sql`LOWER(${adminUsers.email}) = ${normalizedEmail}`)
+      .limit(1);
+
+    if (results.length === 0) {
+      return { valid: false };
+    }
+
+    const user = results[0];
+
+    if (user.status !== "active") {
+      return { valid: false };
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isValidPassword) {
+      return { valid: false };
+    }
+
+    await db
+      .update(adminUsers)
+      .set({ lastLoginAt: new Date() })
+      .where(sql`LOWER(${adminUsers.email}) = ${normalizedEmail}`);
+
+    return { valid: true, email: user.email };
   } catch (error) {
     if (process.env.NODE_ENV !== "test") {
       console.error("Failed to verify admin password", error);
     }
-    return false;
+    return { valid: false };
   }
 }

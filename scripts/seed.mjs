@@ -168,6 +168,39 @@ async function seedConversations(sql, workspaceId) {
   }
 }
 
+async function seedAdminUser(sql) {
+  const adminEmail = env.ADMIN_EMAIL.trim().toLowerCase();
+  const passwordHash = env.ADMIN_PASSWORD_HASH;
+  
+  const existing = await sql`
+    SELECT id FROM admin_users WHERE LOWER(email) = ${adminEmail} LIMIT 1
+  `;
+
+  if (existing.length > 0) {
+    await sql`
+      UPDATE admin_users 
+      SET password_hash = ${passwordHash}, 
+          updated_at = NOW()
+      WHERE LOWER(email) = ${adminEmail}
+    `;
+    console.log(`  ↻ Updated existing admin user: ${adminEmail}`);
+  } else {
+    await sql`
+      INSERT INTO admin_users (id, email, password_hash, first_name, last_name, role, status)
+      VALUES (
+        ${randomUUID()},
+        ${adminEmail},
+        ${passwordHash},
+        'Admin',
+        'User',
+        'superadmin',
+        'active'
+      )
+    `;
+    console.log(`  ✓ Created admin user: ${adminEmail}`);
+  }
+}
+
 async function main() {
   if (!env.POSTGRES_URL) {
     console.error("❌ POSTGRES_URL is not defined. Did you configure your environment variables?");
@@ -186,6 +219,7 @@ async function main() {
     const workspaceId = await upsertWorkspace(sql);
     await seedDataSources(sql, workspaceId);
     await seedConversations(sql, workspaceId);
+    await seedAdminUser(sql);
 
     await sql`COMMIT`;
 
