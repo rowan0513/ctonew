@@ -23,7 +23,9 @@ const envSchema = z.object({
     .default(true),
   REDIS_URL: z.string().min(1),
   WORKSPACE_HEADER: z.string().min(1).default('x-workspace-id'),
-  DATABASE_URL: z.string().min(1)
+  DATABASE_URL: z.string().min(1),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  POSTGRES_URL: z.string().min(1).optional()
 });
 
 let cachedEnv;

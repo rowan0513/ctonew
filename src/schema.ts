@@ -229,7 +229,8 @@ export const documentChunks = pgTable(
     embeddingModel: text("embedding_model")
       .notNull()
       .default("text-embedding-3-large"),
-    vector: vector("vector", { dimensions: 1536 }).notNull(),
+    vector: vector("vector", { dimensions: 3072 }).notNull(),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
