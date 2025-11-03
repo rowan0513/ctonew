@@ -59,7 +59,6 @@ module.exports = {
   crawlSchema,
   fileMetadataSchema,
   fileUploadRequestSchema,
-  fileUploadCompletionSchema
-  chatSchema,
-  fileMetadataSchema
+  fileUploadCompletionSchema,
+  chatSchema
 };
