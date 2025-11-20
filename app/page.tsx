@@ -29,6 +29,10 @@ const features = [
 
 const quickLinks = [
   {
+    label: "Embed snippet tool",
+    href: "/workspaces/ws_northwind_support/embed",
+  },
+  {
     label: "Platform Status",
     href: "https://status.ezchat.io",
   },
@@ -147,20 +151,24 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {quickLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  className="hover:border-primary hover:text-primary flex items-center justify-between rounded-lg border border-muted px-4 py-3 text-sm font-medium text-foreground transition"
-                  href={link.href}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {link.label}
-                  <span aria-hidden className="text-lg">
-                    →
-                  </span>
-                </Link>
-              ))}
+              {quickLinks.map((link) => {
+                const isExternal = link.href.startsWith("http");
+
+                return (
+                  <Link
+                    key={link.label}
+                    className="hover:border-primary hover:text-primary flex items-center justify-between rounded-lg border border-muted px-4 py-3 text-sm font-medium text-foreground transition"
+                    href={link.href}
+                    target={isExternal ? "_blank" : undefined}
+                    rel={isExternal ? "noreferrer" : undefined}
+                  >
+                    {link.label}
+                    <span aria-hidden className="text-lg">
+                      →
+                    </span>
+                  </Link>
+                );
+              })}
             </CardContent>
           </Card>
         </section>
